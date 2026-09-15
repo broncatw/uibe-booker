@@ -1,0 +1,16 @@
+# 贸大预约助手配置样例
+# 复制为 config.local.toml 并填入你的学号密码（该文件已被 .gitignore 排除，不会提交）
+
+username = "2023XXXXXXX"        # 学号
+password = "XXXXXX"             # 密码（与图书馆/信息共享空间系统一致）
+base_url = "http://seat.uibe.edu.cn"
+auth_header = "token"           # 登录后令牌放入哪个请求头
+login_field = "username"        # 登录请求体里用户名的字段名（实测系统不认
+                                # username/loginName，请 F12 抓真实登录后按请求体修改，
+                                # 如 userName / account / userAccount）
+timeout = 10.0
+
+# 如学校调整了接口路径，抓包后在 [endpoints] 覆盖（键名见 client.py DEFAULT_ENDPOINTS）：
+# [endpoints]
+# login = "/ic-web/login"
+# reserve = "/ic-web/reserve"
