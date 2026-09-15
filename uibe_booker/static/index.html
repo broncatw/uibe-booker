@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>贸大预约助手 · 座位/研讨间</title>
+<style>
+:root {
+  --bg: #0f1420; --card: #1a2233; --card2: #212b40; --line: #2c3a55;
+  --text: #e8edf5; --dim: #8b97ad; --acc: #4f8cff; --ok: #34c98e;
+  --bad: #ff6b6b; --warn: #ffb84f;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: "Microsoft YaHei", system-ui, sans-serif; font-size: 14px;
+  padding: 18px; max-width: 1060px; margin: 0 auto;
+}
+h1 { font-size: 20px; margin-bottom: 4px; }
+.sub { color: var(--dim); font-size: 12px; margin-bottom: 14px; }
+.card {
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 14px; margin-bottom: 14px;
+}
+.card h2 { font-size: 14px; color: var(--acc); margin-bottom: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+label { color: var(--dim); font-size: 12px; }
+input, select {
+  background: var(--card2); color: var(--text); border: 1px solid var(--line);
+  border-radius: 6px; padding: 7px 9px; font-size: 13px; outline: none;
+}
+input:focus, select:focus { border-color: var(--acc); }
+button {
+  background: var(--acc); color: #fff; border: 0; border-radius: 6px;
+  padding: 8px 14px; font-size: 13px; cursor: pointer;
+}
+button:hover { filter: brightness(1.12); }
+button.ghost { background: var(--card2); color: var(--text); border: 1px solid var(--line); }
+button.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+button.mini { padding: 4px 10px; font-size: 12px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 7px 9px; text-align: left; border-bottom: 1px solid var(--line); }
+th { color: var(--dim); font-weight: normal; }
+.tag { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+.tag.ok { background: rgba(52,201,142,.15); color: var(--ok); }
+.tag.bad { background: rgba(255,107,107,.15); color: var(--bad); }
+.tag.wait { background: rgba(79,140,255,.15); color: var(--acc); }
+.tag.run { background: rgba(255,184,79,.15); color: var(--warn); }
+#log {
+  background: #0a0e16; border: 1px solid var(--line); border-radius: 8px;
+  padding: 10px; height: 150px; overflow-y: auto;
+  font-family: Consolas, monospace; font-size: 12px; color: var(--dim);
+  white-space: pre-wrap; word-break: break-all;
+}
+.metrics { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.metric {
+  background: var(--card2); border-radius: 8px; padding: 10px 16px; min-width: 110px;
+}
+.metric .v { font-size: 18px; font-weight: bold; }
+.metric .k { font-size: 11px; color: var(--dim); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 800px) { .grid2 { grid-template-columns: 1fr; } }
+.status-line { font-size: 12px; color: var(--dim); margin: 4px 0; }
+</style>
+</head>
+<body>
+<h1>🎯 贸大预约助手</h1>
+<div class="sub">图书馆座位 / 研讨间 · IC 信息共享空间系统 · 本地服务 127.0.0.1</div>
+
+<div class="card">
+  <h2>① 账号配置</h2>
+  <div class="row">
+    <label>学号</label><input id="user" style="width:150px">
+    <label>密码</label><input id="pass" type="password" style="width:150px">
+    <label>用户名字段</label><input id="login_field" style="width:110px" title="登录请求体里用户名的字段名，F12 抓真实登录后按请求体修改">
+    <button onclick="saveConfig()">保存配置</button>
+    <button class="ghost" onclick="api('/api/login','POST')">测试登录</button>
+  </div>
+  <div class="status-line">提示：实测系统不认 username / loginName 字段名。F12 抓一次真实登录，把请求体里用户名的字段名填到上面即可。</div>
+</div>
+
+<div class="card">
+  <h2>② 查询座位 / 研讨间</h2>
+  <div class="row">
+    <label>日期</label><input id="day" type="date">
+    <button class="ghost" onclick="loadAreas()">刷新区域</button>
+    <label>区域</label><select id="area" style="min-width:180px" onchange="loadSpaces()"></select>
+    <label>空间</label><select id="space" style="min-width:180px"></select>
+    <button onclick="loadSeats()">查座位</button>
+  </div>
+  <div id="seatBox"><div class="status-line">选择日期与空间后点「查座位」</div></div>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>③ 定时抢座</h2>
+    <div class="row">
+      <label>座位ID</label><input id="j_seat" style="width:90px">
+      <label>日期</label><input id="j_day" type="date">
+    </div>
+    <div class="row">
+      <label>时段</label><input id="j_start" placeholder="18:30" style="width:70px">
+      <span>—</span><input id="j_end" placeholder="22:00" style="width:70px">
+      <label>触发时间</label><input id="j_trigger" placeholder="2026-09-16 06:00:00" style="width:180px">
+    </div>
+    <div class="row">
+      <button onclick="addJob()">➤ 添加抢座任务</button>
+      <button class="ghost mini" onclick="clearJobs()">清理已完成任务</button>
+      <span style="color:var(--dim);font-size:12px">触发后自动连续尝试约 90 秒</span>
+    </div>
+    <div id="jobBox"></div>
+  </div>
+
+  <div class="card">
+    <h2>④ 我的预约</h2>
+    <button class="ghost mini" onclick="loadMine()">刷新</button>
+    <div id="mineBox" style="margin-top:8px"><div class="status-line">点「刷新」查看</div></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>运行日志</h2>
+  <div id="log"></div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+function log(msg) {
+  const t = new Date().toLocaleTimeString();
+  const box = $("log");
+  box.textContent += `[${t}] ${msg}\n`;
+  box.scrollTop = box.scrollHeight;
+}
+async function api(path, method = "GET", body) {
+  const opt = { method, headers: { "Content-Type": "application/json" } };
+  if (body !== undefined) opt.body = JSON.stringify(body);
+  const resp = await fetch(path, opt);
+  const data = await resp.json().catch(() => ({ ok: false, error: "响应解析失败" }));
+  if (!data.ok) throw new Error(data.error || "请求失败");
+  return data.data;
+}
+function today(offset = 0) {
+  const d = new Date(Date.now() + offset * 86400000);
+  return d.toISOString().slice(0, 10);
+}
+
+async function saveConfig() {
+  try {
+    await api("/api/config", "POST", {
+      username: $("user").value, password: $("pass").value,
+      login_field: $("login_field").value,
+    });
+    log("✓ 配置已保存到服务端 config.local.toml");
+  } catch (e) { log("✗ " + e.message); }
+}
+
+async function testLogin() {
+  log("测试登录中…");
+  try {
+    const r = await api("/api/login", "POST");
+    log("✓ 登录成功，令牌前缀 " + r.token_prefix + "…（令牌只在本机内存）");
+  } catch (e) { log("✗ 登录失败: " + e.message); }
+}
+
+async function loadAreas() {
+  try {
+    const areas = await api("/api/areas");
+    $("area").innerHTML = "";
+    (Array.isArray(areas) ? areas : []).forEach(a => {
+      const o = document.createElement("option");
+      o.value = a.id ?? a.buildingId ?? a.objectId ?? "";
+      o.textContent = a.name ?? a.buildingName ?? o.value;
+      $("area").appendChild(o);
+    });
+    log(`✓ 区域列表 ${$("area").options.length} 项`);
+    if ($("area").options.length) loadSpaces();
+  } catch (e) { log("✗ 区域列表: " + e.message); }
+}
+
+async function loadSpaces() {
+  const bid = $("area").value;
+  if (!bid) return;
+  try {
+    const spaces = await api("/api/spaces/" + bid);
+    $("space").innerHTML = "";
+    (Array.isArray(spaces) ? spaces : []).forEach(s => {
+      const o = document.createElement("option");
+      o.value = s.id ?? s.spaceId ?? "";
+      o.textContent = s.name ?? s.spaceName ?? o.value;
+      $("space").appendChild(o);
+    });
+  } catch (e) { log("✗ 空间列表: " + e.message); }
+}
+
+async function loadSeats() {
+  const day = $("day").value, space = $("space").value;
+  if (!day || !space) { log("请先选日期与空间"); return; }
+  try {
+    const seats = await api("/api/seats?space_id=" + space + "&day=" + day);
+    const list = Array.isArray(seats) ? seats : (seats.seats || []);
+    renderSeats(list);
+    log(`✓ 拉到 ${list.length} 个座位`);
+  } catch (e) { log("✗ 座位查询: " + e.message); }
+}
+
+function renderSeats(list) {
+  if (!list.length) {
+    $("seatBox").innerHTML = '<div class="status-line">该时段没有可用座位数据</div>';
+    return;
+  }
+  const rows = list.map(s => {
+    const id = s.id ?? s.seatId ?? s.seat_id;
+    const name = s.name ?? s.seatName ?? s.title ?? id;
+    const status = s.status ?? s.state ?? "";
+    const free = String(status) === "" || /空闲|free|可用/i.test(status);
+    return `<tr>
+      <td>${id}</td><td>${name}</td>
+      <td>${free ? '<span class="tag ok">空闲</span>' : '<span class="tag bad">不可约</span>'}</td>
+      <td>${free ? `<button class="mini" onclick="quickBook('${id}')">预约</button>` : ""}</td>
+    </tr>`;
+  }).join("");
+  $("seatBox").innerHTML = `<table>
+    <tr><th>座位ID</th><th>名称</th><th>状态</th><th></th></tr>${rows}</table>`;
+}
+
+function quickBook(seatId) {
+  const day = $("day").value;
+  $("j_seat").value = seatId; $("j_day").value = day;
+  $("j_start").value = $("j_start").value || "18:30";
+  $("j_end").value = $("j_end").value || "22:00";
+  return api("/api/reserve", "POST", {
+    seat_id: seatId, day: day,
+    start: $("j_start").value, end: $("j_end").value,
+  }).then(r => { log("✓ 预约成功: " + JSON.stringify(r)); loadMine(); })
+    .catch(e => log("✗ 预约失败: " + e.message));
+}
+
+async function loadMine() {
+  try {
+    const mine = await api("/api/mine");
+    const list = Array.isArray(mine) ? mine : (mine.reservations || []);
+    if (!list.length) { $("mineBox").innerHTML = '<div class="status-line">当前没有预约</div>'; return; }
+    $("mineBox").innerHTML = "<table><tr><th>ID</th><th>详情</th><th></th></tr>" +
+      list.map(r => `<tr><td>${r.id ?? ""}</td>
+        <td>${r.seatName ?? r.seat ?? ""} ${r.day ?? r.date ?? ""} ${r.start ?? ""}-${r.end ?? ""}</td>
+        <td><button class="danger mini" onclick="cancel('${r.id}')">取消</button></td></tr>`).join("");
+  } catch (e) { $("mineBox").innerHTML = "✗ " + e.message; }
+}
+
+async function cancel(id) {
+  try { await api("/api/cancel", "POST", { id }); log("✓ 已取消 " + id); loadMine(); }
+  catch (e) { log("✗ 取消失败: " + e.message); }
+}
+
+function addJob() {
+  const body = {
+    seat_id: $("j_seat").value, day: $("j_day").value,
+    start: $("j_start").value, end: $("j_end").value,
+    trigger_at: $("j_trigger").value,
+  };
+  if (!body.seat_id || !body.day || !body.trigger_at) {
+    log("✗ 抢座任务需要：座位ID、日期、触发时间"); return;
+  }
+  api("/api/jobs", "POST", body)
+    .then(() => { log("✓ 抢座任务已添加（触发时间 " + body.trigger_at + "）"); loadJobs(); })
+    .catch(e => log("✗ " + e.message));
+}
+
+async function loadJobs() {
+  try {
+    const r = await api("/api/jobs");
+    const cls = { "等待触发": "wait", "已触发": "run", "运行中": "run",
+                  "预约成功": "ok" };
+    $("jobBox").innerHTML = r.jobs.length
+      ? "<table><tr><th>座位</th><th>日期</th><th>时段</th><th>触发</th><th>状态</th><th></th></tr>" +
+        r.jobs.map(j => `<tr><td>${j.seat_id}</td><td>${j.day}</td>
+          <td>${j.start}-${j.end}</td><td>${j.trigger_at}</td>
+          <td><span class="tag ${cls[j.status] || ""}">${j.status}</span></td>
+          <td><button class="danger mini" onclick="delJob('${j.id}')">删</button></td></tr>`).join("") +
+        "</table>"
+      : '<div class="status-line">暂无抢座任务</div>';
+  } catch (e) { /* ignore */ }
+}
+
+async function delJob(id) {
+  await api("/api/jobs/" + id, "DELETE");
+  log("已删除任务 " + id); loadJobs();
+}
+async function clearJobs() { await api("/api/jobs", "DELETE"); loadJobs(); }
+
+// 初始化
+$("day").value = today(1);
+setInterval(loadJobs, 2000);
+log("欢迎使用贸大预约助手。先在①填写账号并保存，再「测试登录」。");
+loadJobs();
+</script>
+</body>
+</html>
