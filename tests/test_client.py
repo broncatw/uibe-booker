@@ -49,7 +49,7 @@ def test_login_success_stores_token():
     assert client.login() == "abc123"
     method, url, kwargs = session.calls[0]
     assert url.endswith("/ic-web/login")
-    assert kwargs["json"] == {"username": "u", "password": "p"}
+    assert kwargs["json"] == {"logonName": "u", "password": "p"}
 
 
 def test_login_field_name_configurable():

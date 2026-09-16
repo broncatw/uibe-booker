@@ -31,7 +31,7 @@ class BookConfig:
     # "username"/"loginName" 均提示「登录名称不能为空」，说明真实字段名
     # 不同（如 userName/account/userAccount）。请 F12 抓一次真实登录，
     # 把请求体里的用户名字段名填到这里。
-    login_field: str = "username"
+    login_field: str = "logonName"
     timeout: float = 10.0
 
     @classmethod

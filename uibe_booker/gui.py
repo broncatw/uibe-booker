@@ -37,7 +37,7 @@ class App:
 
         ttk.Label(frm_top, text="用户名字段").grid(row=1, column=0, **pad)
         self.e_field = ttk.Entry(frm_top, width=22)
-        self.e_field.insert(0, "username")
+        self.e_field.insert(0, "logonName")
         self.e_field.grid(row=1, column=1, **pad)
         ttk.Label(frm_top, text="系统地址").grid(row=1, column=2, **pad)
         self.e_base = ttk.Entry(frm_top, width=34)

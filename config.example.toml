@@ -5,7 +5,7 @@ username = "2023XXXXXXX"        # 学号
 password = "XXXXXX"             # 密码（与图书馆/信息共享空间系统一致）
 base_url = "http://seat.uibe.edu.cn"
 auth_header = "token"           # 登录后令牌放入哪个请求头
-login_field = "username"        # 登录请求体里用户名的字段名（实测系统不认
+login_field = "logonName"        # 登录请求体里用户名的字段名（实测系统不认
                                 # username/loginName，请 F12 抓真实登录后按请求体修改，
                                 # 如 userName / account / userAccount）
 timeout = 10.0
